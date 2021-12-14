@@ -32,14 +32,26 @@ type CRDDocsGenerator struct {
 
 	// Path to the config file
 	configFilePath string
+
+	// Path to the cloned repository
+	repoFolder string
+
+	// Path to the custom resource definitions
+	crdFolder string
+
+	// Path to the custom resource examples
+	crFolder string
+
+	// Path to the output folder
+	outputFolderPath string
 }
 
 const (
 	// Target path for our clone of the apiextensions repo.
-	repoFolder = "/tmp/gitclone"
+	// repoFolder = "/tmp/gitclone"
 
 	// Within a git clone, relative path for Giant Swarm CRDs in YAML format.
-	crdFolder = "config/crd"
+	// crdFolder = "config/crd"
 
 	// Within a git clone, relative path for upstream CRDs in YAML format.
 	upstreamCRDFolder = "helm"
@@ -48,12 +60,12 @@ const (
 	upstreamFileName = "upstream.yaml"
 
 	// Within a git clone, relative path for example CRs in YAML format.
-	crFolder = "docs/cr"
+	// crFolder = "docs/cr"
 
 	annotationsFolder = "/pkg/annotation"
 
 	// Path for Markdown output.
-	outputFolderPath = "./output"
+	// outputFolderPath = "./output"
 )
 
 func main() {
@@ -66,11 +78,15 @@ func main() {
 			Short:        "crd-docs-generator is a command line tool for generating markdown files that document Giant Swarm's custom resources",
 			SilenceUsage: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				return generateCrdDocs(crdDocsGenerator.configFilePath)
+				return crdDocsGenerator.generateCrdDocs()
 			},
 		}
 
 		c.PersistentFlags().StringVar(&crdDocsGenerator.configFilePath, "config", "./config.yaml", "Path to the configuration file.")
+		c.PersistentFlags().StringVar(&crdDocsGenerator.crFolder, "crFolder", "docs/cr", "Path to example CRs in YAML format.")
+		c.PersistentFlags().StringVar(&crdDocsGenerator.crdFolder, "crdFolder", "config/crd", "Path to CRDs in YAML format.")
+		c.PersistentFlags().StringVar(&crdDocsGenerator.outputFolderPath, "outputFolderPath", "./output", "Path to the output folder")
+		c.PersistentFlags().StringVar(&crdDocsGenerator.repoFolder, "repoFolder", "/tmp/gitclone", "Path to the cloned repository")
 		crdDocsGenerator.rootCommand = c
 	}
 
@@ -81,8 +97,8 @@ func main() {
 }
 
 // generateCrdDocs is the function called from our main CLI command.
-func generateCrdDocs(configFilePath string) error {
-	configuration, err := config.Read(configFilePath)
+func (generator *CRDDocsGenerator) generateCrdDocs() error {
+	configuration, err := config.Read(generator.configFilePath)
 	if err != nil {
 		return microerror.Mask(err)
 	}
@@ -91,13 +107,13 @@ func generateCrdDocs(configFilePath string) error {
 	crdNames := make(map[string]bool)
 
 	// Loop over configured repositories
-	defer os.RemoveAll(repoFolder)
+	defer os.RemoveAll(generator.repoFolder)
 	for _, sourceRepo := range configuration.SourceRepositories {
 		// List of source YAML files containing CRD definitions.
 		crdFiles := make(map[string]bool)
 
 		log.Printf("INFO - repo %s (%s)", sourceRepo.ShortName, sourceRepo.URL)
-		clonePath := repoFolder + "/" + sourceRepo.Organization + "/" + sourceRepo.ShortName
+		clonePath := generator.repoFolder + "/" + sourceRepo.Organization + "/" + sourceRepo.ShortName
 		// Clone the repositories containing CRDs
 		log.Printf("INFO - repo %s - cloning repository", sourceRepo.ShortName)
 		err = git.CloneRepositoryShallow(
@@ -110,7 +126,7 @@ func generateCrdDocs(configFilePath string) error {
 		}
 
 		// Collect our own CRD YAML files
-		thisCRDFolder := clonePath + "/" + crdFolder
+		thisCRDFolder := clonePath + "/" + generator.crdFolder
 		err = filepath.Walk(thisCRDFolder, func(path string, info os.FileInfo, err error) error {
 			if strings.HasSuffix(path, ".yaml") {
 				crdFiles[path] = true
@@ -151,7 +167,7 @@ func generateCrdDocs(configFilePath string) error {
 			}
 
 			for i := range crds {
-				versions := []string{}
+				var versions []string
 				for _, v := range crds[i].Spec.Versions {
 					versions = append(versions, v.Name)
 				}
@@ -178,7 +194,7 @@ func generateCrdDocs(configFilePath string) error {
 				// Get example CRs for this CRD (using version as key)
 				exampleCRs := make(map[string]string)
 				for _, version := range versions {
-					crFileName := fmt.Sprintf("%s/%s/%s_%s_%s.yaml", clonePath, crFolder, crds[i].Spec.Group, version, crds[i].Spec.Names.Singular)
+					crFileName := fmt.Sprintf("%s/%s/%s_%s_%s.yaml", clonePath, generator.crFolder, crds[i].Spec.Group, version, crds[i].Spec.Names.Singular)
 					exampleCR, err := ioutil.ReadFile(crFileName)
 					if err != nil {
 						log.Printf("WARN - repo %s - CR example is missing for %s version %s in path %s", sourceRepo.ShortName, crds[i].Name, version, crFileName)
@@ -187,7 +203,7 @@ func generateCrdDocs(configFilePath string) error {
 					}
 				}
 
-				templatePath := path.Dir(configFilePath) + "/" + configuration.TemplatePath
+				templatePath := path.Dir(generator.configFilePath) + "/" + configuration.TemplatePath
 
 				crdAnnotations := annotations.FilterForCRD(repoAnnotations, crds[i].Name, "")
 
@@ -196,7 +212,7 @@ func generateCrdDocs(configFilePath string) error {
 					crdAnnotations,
 					meta,
 					exampleCRs,
-					outputFolderPath,
+					generator.outputFolderPath,
 					sourceRepo.URL,
 					sourceRepo.CommitReference,
 					templatePath)
