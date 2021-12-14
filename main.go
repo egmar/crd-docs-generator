@@ -117,8 +117,7 @@ func (generator *CRDDocsGenerator) generateCrdDocs() error {
 		// Clone the repositories containing CRDs
 		log.Printf("INFO - repo %s - cloning repository", sourceRepo.ShortName)
 		err = git.CloneRepositoryShallow(
-			sourceRepo.Organization,
-			sourceRepo.ShortName,
+			sourceRepo.URL,
 			sourceRepo.CommitReference,
 			clonePath)
 		if err != nil {
