@@ -14,9 +14,3 @@ require (
 	k8s.io/apiextensions-apiserver v0.20.13
 	k8s.io/apimachinery v0.22.1
 )
-
-replace (
-	github.com/coreos/etcd => github.com/coreos/etcd v3.3.25+incompatible
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible => github.com/golang-jwt/jwt/v4 v4.0.0
-	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2 // CVE-2021-3121
-)
