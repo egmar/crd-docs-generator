@@ -21,3 +21,13 @@ func CloneRepositoryShallow(url string, tag string, destDir string) error {
 
 	return nil
 }
+
+// IsRepository checks if a given directory is a Git repo
+func IsRepository(destDir string) (bool, error) {
+	cmd := exec.Command("git", "-C", destDir, "rev-parse")
+	if err := cmd.Run(); err != nil {
+		return false, microerror.Maskf(errorpkg.ExecutionError, "Destination directory is not a Git repo.\nTried to execute: %s\n%s", cmd.String(), err.Error())
+	}
+
+	return true, nil
+}
