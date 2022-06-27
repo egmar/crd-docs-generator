@@ -72,14 +72,18 @@ func (crdDocsGenerator *CRDDocsGenerator) GenerateCrdDocs() error {
 
 		log.Printf("INFO - repo %s (%s)", sourceRepo.ShortName, sourceRepo.URL)
 		clonePath := crdDocsGenerator.RepoFolder + "/" + sourceRepo.Organization + "/" + sourceRepo.ShortName
-		// Clone the repositories containing CRDs
-		log.Printf("INFO - repo %s - cloning repository", sourceRepo.ShortName)
-		err = git.CloneRepositoryShallow(
-			sourceRepo.URL,
-			sourceRepo.CommitReference,
-			clonePath)
-		if err != nil {
-			return microerror.Mask(err)
+		isRepository, err := git.IsRepository(clonePath)
+		if !isRepository {
+			log.Printf("INFO - clonePath %s - not a Git repo", clonePath)
+			// Clone the repositories containing CRDs
+			log.Printf("INFO - repo %s - cloning repository", sourceRepo.ShortName)
+			err = git.CloneRepositoryShallow(
+				sourceRepo.URL,
+				sourceRepo.CommitReference,
+				clonePath)
+			if err != nil {
+				return microerror.Mask(err)
+			}
 		}
 
 		// Collect our own CRD YAML files
