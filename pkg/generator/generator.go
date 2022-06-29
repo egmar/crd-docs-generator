@@ -65,7 +65,7 @@ func (crdDocsGenerator *CRDDocsGenerator) GenerateCrdDocs() error {
 	crdNames := make(map[string]bool)
 
 	// Loop over configured repositories
-	defer os.RemoveAll(crdDocsGenerator.RepoFolder)
+	// defer os.RemoveAll(crdDocsGenerator.RepoFolder)
 	for _, sourceRepo := range configuration.SourceRepositories {
 		// List of source YAML files containing CRD definitions.
 		crdFiles := make(map[string]bool)
